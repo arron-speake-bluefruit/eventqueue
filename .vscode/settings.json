@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.inc": "c",
+        "stddef.h": "c",
+        "timer_heap.h": "c"
+    }
+}

@@ -1,5 +1,5 @@
 #include "eventqueue.h"
-#include <stddef.h>
+#include "mock_time.h"
 #include <assert.h>
 
 // --- Utility & mocks --- //
@@ -19,6 +19,21 @@ static void can_add_timers(void) {
     TimerId id_b = event_queue_add_timer(&queue, 5000, timer_callback, NULL);
     assert(id_a.id != id_b.id);
 
+    assert(timer_callback_call_count == 0);
+
+    event_queue_wait(&queue);
+    assert(mock_time_get() == 3000);
+    assert(timer_callback_call_count == 1);
+
+    event_queue_wait(&queue);
+    assert(mock_time_get() == 5000);
+    assert(timer_callback_call_count == 2);
+
+    // No event to wait for, so immediate return.
+    event_queue_wait(&queue);
+    assert(mock_time_get() == 5000);
+    assert(timer_callback_call_count == 2);
+
     event_queue_free(&queue);
 }
 
@@ -26,6 +41,7 @@ static void can_add_timers(void) {
 
 static void setup(void) {
     timer_callback_call_count = 0;
+    mock_time_reset();
 }
 
 int main(void) {

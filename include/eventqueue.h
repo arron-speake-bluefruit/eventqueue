@@ -1,9 +1,9 @@
 #ifndef EVENT_QUEUE_H
 #define EVENT_QUEUE_H
 
+#include "timer_heap.h"
+#include <stddef.h>
 #include <stdint.h>
-
-typedef void (*TimerFunction)(void* userdata);
 
 typedef struct TimerId {
     uint32_t id;
@@ -11,6 +11,7 @@ typedef struct TimerId {
 
 typedef struct EventQueue {
     uint32_t next_timer_id;
+    TimerHeap timers;
 } EventQueue;
 
 EventQueue event_queue_new(void);
@@ -21,6 +22,8 @@ TimerId event_queue_add_timer(
     TimerFunction function,
     void* userdata
 );
+
+void event_queue_wait(EventQueue* queue);
 
 void event_queue_free(EventQueue* queue);
 
