@@ -5,9 +5,10 @@
 // --- Utility & mocks --- //
 
 static size_t timer_a_callback_call_count;
+static void* timer_a_callback_userdata;
 static void timer_a_callback(void* userdata) {
-    (void)userdata;
     timer_a_callback_call_count += 1;
+    timer_a_callback_userdata = userdata;
 }
 
 static size_t timer_b_callback_call_count;
@@ -21,7 +22,9 @@ static void timer_b_callback(void* userdata) {
 static void can_add_timers(void) {
     EventQueue queue = event_queue_new();
 
-    TimerId id_a = event_queue_add_timer(&queue, 3000, timer_a_callback, NULL);
+    int example_value = 0;
+
+    TimerId id_a = event_queue_add_timer(&queue, 3000, timer_a_callback, &example_value);
     TimerId id_b = event_queue_add_timer(&queue, 5000, timer_a_callback, NULL);
     assert(id_a.id != id_b.id);
 
@@ -30,6 +33,7 @@ static void can_add_timers(void) {
     assert(event_queue_wait(&queue));
     assert(mock_time_get() == 3000);
     assert(timer_a_callback_call_count == 1);
+    assert(timer_a_callback_userdata == &example_value);
 
     assert(event_queue_wait(&queue));
     assert(mock_time_get() == 5000);
@@ -100,6 +104,7 @@ static void can_remove_timers(void) {
 static void setup(void) {
     timer_a_callback_call_count = 0;
     timer_b_callback_call_count = 0;
+    timer_a_callback_userdata = NULL;
     mock_time_reset();
 }
 
