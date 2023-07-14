@@ -13,6 +13,11 @@ static void after_three_second(void* userdata) {
     *value = 25;
 }
 
+static void every_second(void* userdata) {
+    (void)userdata;
+    printf("A second has passed\n");
+}
+
 int main(void) {
     // Create a new event queue.
     EventQueue queue = event_queue_new();
@@ -23,6 +28,7 @@ int main(void) {
     // Register two events which fire once 2s and 3s in the future.
     event_queue_add_timer(&queue, 2000000, after_two_second, &value);
     event_queue_add_timer(&queue, 3000000, after_three_second, &value);
+    event_queue_add_periodic_timer(&queue, 500000, 1000000, every_second, &value);
 
     printf("Value is %i\n", value);
 

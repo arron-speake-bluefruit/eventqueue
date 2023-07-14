@@ -23,6 +23,14 @@ TimerId event_queue_add_timer(
     void* userdata
 );
 
+TimerId event_queue_add_periodic_timer(
+    EventQueue* queue,
+    uint64_t delay_us,
+    uint64_t period_us,
+    TimerFunction function,
+    void* userdata
+);
+
 bool event_queue_wait(EventQueue* queue);
 
 void event_queue_free(EventQueue* queue);

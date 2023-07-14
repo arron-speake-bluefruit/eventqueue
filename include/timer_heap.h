@@ -8,9 +8,19 @@
 typedef void (*TimerFunction)(void* userdata);
 
 typedef struct Timer {
+    // When the timer should be fired next.
     uint64_t deadline;
+
+    // The period of the timer. If equal to `UINT64_MAX`, is a one-shot timer.
+    uint64_t period;
+
+    // The function to call when the timer fires.
     TimerFunction function;
+
+    // Data to pass to `function when its called.
     void* userdata;
+
+    // The ID of the timer.
     uint32_t id;
 } Timer;
 

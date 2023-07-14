@@ -24,6 +24,32 @@ TimerId event_queue_add_timer(
 
     Timer timer = {
         .deadline = now + delay_us,
+        .period = UINT64_MAX,
+        .function = function,
+        .userdata = userdata,
+        .id = id,
+    };
+
+    timer_heap_insert(&queue->timers, timer);
+
+    return (TimerId){id};
+}
+
+TimerId event_queue_add_periodic_timer(
+    EventQueue* queue,
+    uint64_t delay_us,
+    uint64_t period_us,
+    TimerFunction function,
+    void* userdata
+) {
+    uint32_t id = queue->next_timer_id;
+    queue->next_timer_id += 1;
+
+    uint64_t now = time_now_us();
+
+    Timer timer = {
+        .deadline = now + delay_us,
+        .period = period_us,
         .function = function,
         .userdata = userdata,
         .id = id,
@@ -39,6 +65,15 @@ bool event_queue_wait(EventQueue* queue) {
     if (timer_heap_take(&queue->timers, &timer)) {
         time_sleep_until(timer.deadline);
         timer.function(timer.userdata);
+
+        bool is_periodic = timer.period != UINT64_MAX;
+        if (is_periodic) {
+            // TODO: This can be optimized by checking if the timer is reinserted before the binary
+            // tree sift-down in timer_heap_take.
+            timer.deadline += timer.period;
+            timer_heap_insert(&queue->timers, timer);
+        }
+
         return true;
     } else {
         return false;
