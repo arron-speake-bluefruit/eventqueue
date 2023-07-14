@@ -14,7 +14,8 @@ static void after_three_second(void* userdata) {
 }
 
 static void every_second(void* userdata) {
-    (void)userdata;
+    unsigned* counter = (unsigned*)userdata;
+    *counter += 1;
     printf("A second has passed\n");
 }
 
@@ -24,16 +25,21 @@ int main(void) {
 
     // Example data to pass into timer callbacks.
     int value = 100;
+    unsigned second_counter = 0;
 
     // Register two events which fire once 2s and 3s in the future.
     event_queue_add_timer(&queue, 2000000, after_two_second, &value);
     event_queue_add_timer(&queue, 3000000, after_three_second, &value);
-    event_queue_add_periodic_timer(&queue, 500000, 1000000, every_second, &value);
+    TimerId timer = event_queue_add_periodic_timer(&queue, 500000, 1000000, every_second, &second_counter);
 
     printf("Value is %i\n", value);
 
+    // Wait until there're no more events.
     while (event_queue_wait(&queue)) {
-        // Wait until there're no more events.
+        if (second_counter == 10) {
+            // After 10 calls of `every_second`, stop the timer.
+            event_queue_remove_timer(&queue, timer);
+        }
     }
 
     printf("Value is %i\n", value);
