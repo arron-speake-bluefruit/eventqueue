@@ -34,11 +34,14 @@ TimerId event_queue_add_timer(
     return (TimerId){id};
 }
 
-void event_queue_wait(EventQueue* queue) {
+bool event_queue_wait(EventQueue* queue) {
     Timer timer;
     if (timer_heap_take(&queue->timers, &timer)) {
         time_sleep_until(timer.deadline);
         timer.function(timer.userdata);
+        return true;
+    } else {
+        return false;
     }
 }
 

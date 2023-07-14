@@ -21,16 +21,16 @@ static void can_add_timers(void) {
 
     assert(timer_callback_call_count == 0);
 
-    event_queue_wait(&queue);
+    assert(event_queue_wait(&queue));
     assert(mock_time_get() == 3000);
     assert(timer_callback_call_count == 1);
 
-    event_queue_wait(&queue);
+    assert(event_queue_wait(&queue));
     assert(mock_time_get() == 5000);
     assert(timer_callback_call_count == 2);
 
     // No event to wait for, so immediate return.
-    event_queue_wait(&queue);
+    assert(!event_queue_wait(&queue));
     assert(mock_time_get() == 5000);
     assert(timer_callback_call_count == 2);
 

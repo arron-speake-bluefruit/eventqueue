@@ -23,7 +23,7 @@ TimerId event_queue_add_timer(
     void* userdata
 );
 
-void event_queue_wait(EventQueue* queue);
+bool event_queue_wait(EventQueue* queue);
 
 void event_queue_free(EventQueue* queue);
 

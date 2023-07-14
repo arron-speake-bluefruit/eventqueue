@@ -14,20 +14,24 @@ static void after_three_second(void* userdata) {
 }
 
 int main(void) {
+    // Create a new event queue.
     EventQueue queue = event_queue_new();
 
+    // Example data to pass into timer callbacks.
     int value = 100;
 
+    // Register two events which fire once 2s and 3s in the future.
     event_queue_add_timer(&queue, 2000000, after_two_second, &value);
     event_queue_add_timer(&queue, 3000000, after_three_second, &value);
 
     printf("Value is %i\n", value);
 
-    // TODO: Replace with loop.
-    event_queue_wait(&queue);
-    event_queue_wait(&queue);
+    while (event_queue_wait(&queue)) {
+        // Wait until there're no more events.
+    }
 
     printf("Value is %i\n", value);
 
+    // Clean up the event queue.
     event_queue_free(&queue);
 }
