@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(eventqueue VERSION 0.1.0)
 
 option(ENABLE_TESTING "Enable compilation of unit tests" OFF)
+option(BUILD_EXAMPLE "Enable compilation of example program" OFF)
 
 add_library(eventqueue
     "source/eventqueue.c"
@@ -41,4 +42,9 @@ if (${ENABLE_TESTING})
             COMMAND valgrind --leak-check=full --error-exitcode=1 "${CMAKE_BINARY_DIR}/${test}_tests"
         )
     endforeach ()
+endif ()
+
+if (${BUILD_EXAMPLE})
+    add_executable(example "example/main.c")
+    target_link_libraries(example PUBLIC eventqueue)
 endif ()
