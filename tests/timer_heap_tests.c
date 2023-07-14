@@ -107,12 +107,36 @@ static void can_insert_very_large_number_of_elements(void) {
     timer_heap_free(&heap);
 }
 
+static void can_remove_timers(void) {
+    TimerHeap heap = timer_heap_new();
+
+    timer_heap_insert(&heap, (Timer){ .deadline = 100, .id = 1 });
+    timer_heap_insert(&heap, (Timer){ .deadline = 200, .id = 2 });
+    timer_heap_insert(&heap, (Timer){ .deadline = 300, .id = 3 });
+
+    timer_heap_remove_id(&heap, (TimerId){1});
+
+    Timer first;
+    assert(timer_heap_take(&heap, &first));
+    assert(first.id == 2);
+
+    Timer second;
+    assert(timer_heap_take(&heap, &second));
+    assert(second.id == 3);
+
+    Timer third;
+    assert(!timer_heap_take(&heap, &third));
+
+    timer_heap_free(&heap);
+}
+
 int main(void) {
     void (*tests[])(void) = {
         new_timer_heap_is_empty,
         can_insert_and_remove_element,
         can_insert_multiple_elements,
         can_insert_very_large_number_of_elements,
+        can_remove_timers,
     };
 
     size_t test_count = sizeof(tests) / sizeof(tests[0]);

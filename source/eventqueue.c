@@ -60,6 +60,10 @@ TimerId event_queue_add_periodic_timer(
     return (TimerId){id};
 }
 
+void event_queue_remove_timer(EventQueue* queue, TimerId id) {
+    timer_heap_remove_id(&queue->timers, id);
+}
+
 bool event_queue_wait(EventQueue* queue) {
     Timer timer;
     if (timer_heap_take(&queue->timers, &timer)) {

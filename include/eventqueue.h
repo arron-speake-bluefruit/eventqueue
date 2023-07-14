@@ -5,10 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct TimerId {
-    uint32_t id;
-} TimerId;
-
 typedef struct EventQueue {
     uint32_t next_timer_id;
     TimerHeap timers;
@@ -30,6 +26,8 @@ TimerId event_queue_add_periodic_timer(
     TimerFunction function,
     void* userdata
 );
+
+void event_queue_remove_timer(EventQueue* queue, TimerId id);
 
 bool event_queue_wait(EventQueue* queue);
 

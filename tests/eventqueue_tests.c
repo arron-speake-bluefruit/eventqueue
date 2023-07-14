@@ -83,6 +83,18 @@ static void can_add_periodic_timers(void) {
     event_queue_free(&queue);
 }
 
+static void can_remove_timers(void) {
+    EventQueue queue = event_queue_new();
+
+    TimerId timer = event_queue_add_periodic_timer(&queue, 2000, 2000, timer_a_callback, NULL);
+
+    event_queue_remove_timer(&queue, timer);
+
+    assert(!event_queue_wait(&queue));
+
+    event_queue_free(&queue);
+}
+
 // --- Test runner -- //
 
 static void setup(void) {
@@ -95,6 +107,7 @@ int main(void) {
     void (*tests[])(void) = {
         can_add_timers,
         can_add_periodic_timers,
+        can_remove_timers,
     };
 
     size_t test_count = sizeof(tests) / sizeof(tests[0]);

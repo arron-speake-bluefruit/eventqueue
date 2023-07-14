@@ -90,6 +90,17 @@ static size_t append_element_unchecked(TimerHeap* heap, Timer timer) {
     return index;
 }
 
+static bool get_timer_index_by_id(const TimerHeap* heap, TimerId id, size_t* out) {
+    for (size_t i = 0; i < heap->size; i++) {
+        if (heap->data[i].id == id.id) {
+            *out = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void timer_heap_insert(TimerHeap* heap, Timer timer) {
     reallocate_if_at_capacity(heap);
     size_t index = append_element_unchecked(heap, timer);
@@ -119,6 +130,18 @@ bool timer_heap_take(TimerHeap* heap, Timer* out) {
         sift_down(heap, 0);
 
         return true;
+    }
+}
+
+void timer_heap_remove_id(TimerHeap* heap, TimerId id) {
+    size_t index;
+    if (get_timer_index_by_id(heap, id, &index)) {
+        // Replace to-be-removed timer with least-minimal element.
+        heap->data[index] = heap->data[heap->size - 1];
+        heap->size -= 1;
+
+        // Sort the heap so the root is minimal.
+        sift_down(heap, index);
     }
 }
 

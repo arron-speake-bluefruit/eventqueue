@@ -7,6 +7,10 @@
 
 typedef void (*TimerFunction)(void* userdata);
 
+typedef struct TimerId {
+    uint32_t id;
+} TimerId;
+
 typedef struct Timer {
     // When the timer should be fired next.
     uint64_t deadline;
@@ -34,6 +38,7 @@ TimerHeap timer_heap_new(void);
 void timer_heap_insert(TimerHeap* heap, Timer timer);
 const Timer* timer_heap_find(const TimerHeap* heap);
 bool timer_heap_take(TimerHeap* heap, Timer* out);
+void timer_heap_remove_id(TimerHeap* heap, TimerId id);
 void timer_heap_free(TimerHeap* heap);
 
 #endif // EVENTQUEUE_TIMER_HEAP_H
