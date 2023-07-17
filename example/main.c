@@ -19,6 +19,12 @@ static void every_second(void* userdata) {
     printf("A second has passed\n");
 }
 
+static void on_event(void* general_info, void* specific_info) {
+    (void)general_info;
+    (void)specific_info;
+    printf("Event fired\n");
+}
+
 int main(void) {
     // Create a new event queue.
     EventQueue queue = event_queue_new();
@@ -30,6 +36,7 @@ int main(void) {
     // Register two events which fire once 2s and 3s in the future.
     event_queue_add_timer(&queue, 2000000, after_two_second, &value);
     event_queue_add_timer(&queue, 3000000, after_three_second, &value);
+    EventId event = event_queue_add_event(&queue, on_event, &second_counter);
     TimerId timer = event_queue_add_periodic_timer(&queue, 500000, 1000000, every_second, &second_counter);
 
     printf("Value is %i\n", value);
@@ -39,6 +46,8 @@ int main(void) {
         if (second_counter == 10) {
             // After 10 calls of `every_second`, stop the timer.
             event_queue_remove_timer(&queue, timer);
+            second_counter += 1;
+            event_queue_trigger_event(&queue, event, NULL);
         }
     }
 
