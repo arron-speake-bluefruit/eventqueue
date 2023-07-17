@@ -99,12 +99,56 @@ static void can_remove_timers(void) {
     event_queue_free(&queue);
 }
 
+static size_t event_callback_call_count;
+static void* event_callback_userdata;
+static void* event_callback_eventdata;
+void event_callback(void* userdata, void* eventdata) {
+    event_callback_call_count += 1;
+    event_callback_userdata = userdata;
+    event_callback_eventdata = eventdata;
+}
+
+static void can_add_events(void) {
+    EventQueue queue = event_queue_new();
+
+    int a_data = 0;
+    int b_data = 0;
+    int arg_data = 0;
+
+    EventId event_a = event_queue_add_event(&queue, event_callback, &a_data);
+    EventId event_b = event_queue_add_event(&queue, event_callback, &b_data);
+    assert(event_a.id != event_b.id);
+
+    event_queue_trigger_event(&queue, event_a, &arg_data);
+    assert(event_callback_call_count == 1);
+    assert(event_callback_userdata == &a_data);
+    assert(event_callback_eventdata == &arg_data);
+
+    event_queue_trigger_event(&queue, event_b, &arg_data);
+    assert(event_callback_call_count == 2);
+    assert(event_callback_userdata == &b_data);
+    assert(event_callback_eventdata == &arg_data);
+
+    event_queue_remove_event(&queue, event_a);
+    event_queue_remove_event(&queue, event_b);
+
+    // When events are removed, no function call made
+    event_queue_trigger_event(&queue, event_a, &arg_data);
+    event_queue_trigger_event(&queue, event_b, &arg_data);
+    assert(event_callback_call_count == 2);
+
+    event_queue_free(&queue);
+}
+
 // --- Test runner -- //
 
 static void setup(void) {
     timer_a_callback_call_count = 0;
     timer_b_callback_call_count = 0;
     timer_a_callback_userdata = NULL;
+    event_callback_call_count = 0;
+    event_callback_userdata = NULL;
+    event_callback_eventdata = NULL;
     mock_time_reset();
 }
 
@@ -113,6 +157,7 @@ int main(void) {
         can_add_timers,
         can_add_periodic_timers,
         can_remove_timers,
+        can_add_events,
     };
 
     size_t test_count = sizeof(tests) / sizeof(tests[0]);
