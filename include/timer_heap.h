@@ -12,20 +12,23 @@ typedef struct TimerId {
 } TimerId;
 
 typedef struct Timer {
-    // When the timer should be fired next.
+    // Whether this timer is for an event firing, and not a timer.
+    bool is_event;
+
+    // The ID of the timer. For events, the ID of the event.
+    uint32_t id;
+
+    // When the timer should be fired next. For events, its the scheduled deadline of the event.
     uint64_t deadline;
 
-    // The period of the timer. If equal to `UINT64_MAX`, is a one-shot timer.
+    // The period of the timer. If equal to `UINT64_MAX`, is a one-shot timer. Ignored for events.
     uint64_t period;
 
-    // The function to call when the timer fires.
+    // The function to call when the timer fires. Ignored for events.
     TimerFunction function;
 
-    // Data to pass to `function when its called.
+    // Data to pass to the associated timer/event function when called.
     void* userdata;
-
-    // The ID of the timer.
-    uint32_t id;
 } Timer;
 
 typedef struct TimerHeap {

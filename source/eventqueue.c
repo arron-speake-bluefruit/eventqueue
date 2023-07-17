@@ -17,6 +17,39 @@ static void push_event(EventQueue* queue, Event event) {
     queue->events_size += 1;
 }
 
+static bool get_event_by_id(const EventQueue* queue, EventId id, size_t* out) {
+    // TODO: Replace with binary search
+    for (size_t i = 0; i < queue->events_size; i++) {
+        if (queue->events[i].id == id.id) {
+            *out = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void remove_event_at_position(EventQueue* queue, size_t index) {
+    void* destination =  &queue->events[index];
+    const void* source = &queue->events[index + 1];
+    size_t size = sizeof(Event) * (queue->events_size - index - 1);
+    memmove(destination, source, size);
+
+    queue->events_size -= 1;
+}
+
+static void push_event_to_timer_queue(EventQueue* queue, EventId id, void* eventdata) {
+    Timer timer = {
+        .is_event = true,
+        .deadline = time_now_us(),
+        .period = 0, // Unused
+        .function = NULL, // Unused
+        .userdata = eventdata,
+        .id = id.id,
+    };
+    timer_heap_insert(&queue->timers, timer);
+}
+
 EventQueue event_queue_new(void) {
     TimerHeap timers = timer_heap_new();
 
@@ -39,22 +72,7 @@ TimerId event_queue_add_timer(
     TimerFunction function,
     void* userdata
 ) {
-    uint32_t id = queue->next_timer_id;
-    queue->next_timer_id += 1;
-
-    uint64_t now = time_now_us();
-
-    Timer timer = {
-        .deadline = now + delay_us,
-        .period = UINT64_MAX,
-        .function = function,
-        .userdata = userdata,
-        .id = id,
-    };
-
-    timer_heap_insert(&queue->timers, timer);
-
-    return (TimerId){id};
+    return event_queue_add_periodic_timer(queue, delay_us, UINT64_MAX, function, userdata);
 }
 
 TimerId event_queue_add_periodic_timer(
@@ -70,11 +88,12 @@ TimerId event_queue_add_periodic_timer(
     uint64_t now = time_now_us();
 
     Timer timer = {
+        .is_event = false,
+        .id = id,
         .deadline = now + delay_us,
         .period = period_us,
         .function = function,
         .userdata = userdata,
-        .id = id,
     };
 
     timer_heap_insert(&queue->timers, timer);
@@ -101,27 +120,6 @@ EventId event_queue_add_event(EventQueue* queue, EventFunction function, void* u
     return (EventId){id};
 }
 
-static bool get_event_by_id(const EventQueue* queue, EventId id, size_t* out) {
-    // TODO: Replace with binary search
-    for (size_t i = 0; i < queue->events_size; i++) {
-        if (queue->events[i].id == id.id) {
-            *out = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static void remove_event_at_position(EventQueue* queue, size_t index) {
-    void* destination =  &queue->events[index];
-    const void* source = &queue->events[index + 1];
-    size_t size = sizeof(Event) * (queue->events_size - index - 1);
-    memmove(destination, source, size);
-
-    queue->events_size -= 1;
-}
-
 void event_queue_remove_event(EventQueue* queue, EventId id) {
     size_t index;
     if (get_event_by_id(queue, id, &index)) {
@@ -133,15 +131,26 @@ void event_queue_remove_event(EventQueue* queue, EventId id) {
 void event_queue_trigger_event(EventQueue* queue, EventId id, void* eventdata) {
     size_t index;
     if (get_event_by_id(queue, id, &index)) {
-        Event event = queue->events[index];
-        event.function(event.userdata, eventdata);
+        push_event_to_timer_queue(queue, id, eventdata);
     }
     // TODO: Handle case of invalid ID?
 }
 
 bool event_queue_wait(EventQueue* queue) {
     Timer timer;
-    if (timer_heap_take(&queue->timers, &timer)) {
+    if (!timer_heap_take(&queue->timers, &timer)) {
+        return false;
+    } else if (timer.is_event) {
+        EventId id = (EventId){timer.id};
+
+        size_t index;
+        if (get_event_by_id(queue, id, &index)) {
+            Event event = queue->events[index];
+            event.function(event.userdata, timer.userdata);
+        }
+
+        return true;
+    } else {
         time_sleep_until(timer.deadline);
         timer.function(timer.userdata);
 
@@ -154,8 +163,6 @@ bool event_queue_wait(EventQueue* queue) {
         }
 
         return true;
-    } else {
-        return false;
     }
 }
 

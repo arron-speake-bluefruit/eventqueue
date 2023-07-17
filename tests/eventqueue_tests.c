@@ -120,11 +120,17 @@ static void can_add_events(void) {
     assert(event_a.id != event_b.id);
 
     event_queue_trigger_event(&queue, event_a, &arg_data);
+    assert(event_callback_call_count == 0);
+
+    event_queue_trigger_event(&queue, event_b, &arg_data);
+    assert(event_callback_call_count == 0);
+
+    assert(event_queue_wait(&queue));
     assert(event_callback_call_count == 1);
     assert(event_callback_userdata == &a_data);
     assert(event_callback_eventdata == &arg_data);
 
-    event_queue_trigger_event(&queue, event_b, &arg_data);
+    assert(event_queue_wait(&queue));
     assert(event_callback_call_count == 2);
     assert(event_callback_userdata == &b_data);
     assert(event_callback_eventdata == &arg_data);
@@ -133,8 +139,7 @@ static void can_add_events(void) {
     event_queue_remove_event(&queue, event_b);
 
     // When events are removed, no function call made
-    event_queue_trigger_event(&queue, event_a, &arg_data);
-    event_queue_trigger_event(&queue, event_b, &arg_data);
+    assert(!event_queue_wait(&queue));
     assert(event_callback_call_count == 2);
 
     event_queue_free(&queue);
