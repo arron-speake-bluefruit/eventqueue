@@ -2,14 +2,15 @@
 
 Features:
 - Periodic events (triggers every X microseconds)
-- I/O events (triggers on pipes/files/sockets/etc.)
 - Internal events (triggers on calls to a event push function)
 
 Maybe features:
+- I/O events (triggers on pipes/files/sockets/etc.)
 - Priority/Urgency (priority level integer OR urgent flag)
 - Thread-safety (Just firing internal events OR entire stack)
 - Interrupt safety/re-entrancy on event-trigger function calls?
 - Catch signals?
+- Specify event delays
 
 # Periodic events
 
