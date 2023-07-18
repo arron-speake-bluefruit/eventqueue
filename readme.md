@@ -1,16 +1,24 @@
-# eventqueue generic event queue library
+# general purpose linux event queue library
 
-Features:
-- Periodic events (triggers every X microseconds)
-- Internal events (triggers on calls to a event push function)
+## Features
 
-Maybe features:
-- I/O events (triggers on pipes/files/sockets/etc.)
-- Priority/Urgency (priority level integer OR urgent flag)
-- Thread-safety (Just firing internal events OR entire stack)
-- Interrupt safety/re-entrancy on event-trigger function calls?
-- Catch signals?
+- Timers
+  - Configure one-shot and periodic timers which fire at fixed rates
+- Events
+  - Register and trigger events
+- I/O Events
+  - Trigger callbacks on `poll`'d file descriptors.
+  - Configure which events are listened for (read available, write available, etc.)
+
+### Maybe features
+- Priority/Urgency
+  - priority level integer/urgent flag
+  - interacts with timer deadlines somehow?
+- Thread-safety
+  - Firing events from other threads while polling/waiting on main thread.
+  - Signal (interrupt) safety?
 - Specify event delays
+- Event-queue wait timeout?
 
 # Periodic events
 

@@ -49,6 +49,12 @@ typedef struct EventQueue {
     Event* events;
     size_t events_size;
     size_t events_capacity;
+
+    bool has_io_event;
+    int io_fd;
+    uint32_t io_mask;
+    EventIoFunction io_function;
+    void* io_userdata;
 } EventQueue;
 
 // Create a new event queue with no registered timers or events.

@@ -2,6 +2,7 @@
 #include "mock_time.h"
 #include <assert.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 // --- Utility & mocks --- //
 
@@ -18,10 +19,19 @@ static void timer_b_callback(void* userdata) {
     timer_b_callback_call_count += 1;
 }
 
+static size_t event_io_function_call_count;
+static int event_io_function_fd;
+static EventIoFlag event_io_function_flag;
+static void* event_io_function_userdata;
 static void event_io_function(int fd, EventIoFlag flag, void* userdata) {
-    (void)fd;
-    (void)flag;
-    (void)userdata;
+    event_io_function_fd = fd;
+    event_io_function_flag = flag;
+    event_io_function_userdata = userdata;
+    event_io_function_call_count += 1;
+
+    // empty out the available data
+    char data;
+    while (read(fd, &data, 1) == 1) {}
 }
 
 // --- Tests --- //
@@ -154,21 +164,32 @@ static void can_add_events(void) {
 
 static void can_add_io_read_event(void) {
     // Set up pipes for testing instead of file descriptors of on-disk files.
+    // The pipes are made non-blocking.
     int pipes[2];
     assert(pipe(pipes) == 0);
     int read_pipe = pipes[0];
     int write_pipe = pipes[1];
+    assert(fcntl(read_pipe, F_SETFL, O_NONBLOCK) == 0);
 
+    int userdata = 0;
     EventQueue queue = event_queue_new();
-
     IoEventId event = event_queue_add_io_event(
-        &queue, read_pipe, io_event_kind_read, event_io_function, NULL);
+        &queue, read_pipe, io_event_kind_read, event_io_function, &userdata);
+
+    assert(write(write_pipe, "Hello!\n", 7) == 7);
+
+    assert(event_queue_wait(&queue));
+    assert(event_io_function_fd == read_pipe);
+    assert(event_io_function_flag == io_event_kind_read);
+    assert(event_io_function_userdata == &userdata);
+    assert(event_io_function_call_count == 1);
 
     event_queue_remove_io_event(&queue, event);
 
-    event_queue_free(&queue);
+    assert(!event_queue_wait(&queue));
+    assert(event_io_function_call_count == 1);
 
-    // Close test pipes
+    event_queue_free(&queue);
     close(write_pipe);
     close(read_pipe);
 }
@@ -182,6 +203,10 @@ static void setup(void) {
     event_callback_call_count = 0;
     event_callback_userdata = NULL;
     event_callback_eventdata = NULL;
+    event_io_function_fd = 0;
+    event_io_function_flag = 0;
+    event_io_function_userdata = NULL;
+    event_io_function_call_count = 0;
     mock_time_reset();
 }
 

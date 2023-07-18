@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <poll.h>
+#include <assert.h>
 
 // Definition of typedef struct Event Event (in header);
 struct Event {
@@ -71,6 +72,7 @@ EventQueue event_queue_new(void) {
         .events = events,
         .events_size = 0,
         .events_capacity = 1,
+        .has_io_event = false,
     };
 }
 
@@ -151,20 +153,43 @@ IoEventId event_queue_add_io_event(
     EventIoFunction function,
     void* userdata
 ) {
-    (void)queue;
-    (void)fd;
-    (void)mask;
-    (void)function;
-    (void)userdata;
+    queue->has_io_event = true;
+    queue->io_fd = fd;
+    queue->io_mask = mask;
+    queue->io_function = function;
+    queue->io_userdata = userdata;
+
     return (IoEventId){0};
 }
 
 void event_queue_remove_io_event(EventQueue* queue, IoEventId id) {
-    (void)queue;
     (void)id;
+
+    queue->has_io_event = false;
 }
 
 bool event_queue_wait(EventQueue* queue) {
+    if (queue->has_io_event) {
+        // TODO: Handle IO events with mixed events & timers
+        assert(queue->io_mask == io_event_kind_read); // TODO: Handle non-read IO events.
+
+        struct pollfd pollfd = {
+            .events = POLLIN,
+            .fd = queue->io_fd,
+            .revents = 0,
+        };
+
+        int timeout_ms = -1; // TODO: Get timeout from timer queue.
+
+        if (poll(&pollfd, 1, timeout_ms) > 0) {
+            queue->io_function(queue->io_fd, io_event_kind_read, queue->io_userdata);
+        } else {
+            // TODO: Handle poll error and timeout.
+        }
+
+        return true;
+    }
+
     Timer timer;
     if (!timer_heap_take(&queue->timers, &timer)) {
         return false;
