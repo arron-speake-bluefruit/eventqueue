@@ -2,6 +2,14 @@
 #include "eq_time.h"
 #include <stdlib.h>
 #include <string.h>
+#include <poll.h>
+
+// Definition of typedef struct Event Event (in header);
+struct Event {
+    uint32_t id;
+    void* userdata;
+    EventFunction function;
+};
 
 static void reallocate_events_if_at_capacity(EventQueue* queue) {
     if (queue->events_size == queue->events_capacity) {
@@ -134,6 +142,26 @@ void event_queue_trigger_event(EventQueue* queue, EventId id, void* eventdata) {
         push_event_to_timer_queue(queue, id, eventdata);
     }
     // TODO: Handle case of invalid ID?
+}
+
+IoEventId event_queue_add_io_event(
+    EventQueue* queue,
+    int fd,
+    uint32_t mask,
+    EventIoFunction function,
+    void* userdata
+) {
+    (void)queue;
+    (void)fd;
+    (void)mask;
+    (void)function;
+    (void)userdata;
+    return (IoEventId){0};
+}
+
+void event_queue_remove_io_event(EventQueue* queue, IoEventId id) {
+    (void)queue;
+    (void)id;
 }
 
 bool event_queue_wait(EventQueue* queue) {

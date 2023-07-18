@@ -5,23 +5,47 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// A kind of I/O event to watch for.
+typedef enum EventIoFlag {
+    // Data is available to read on a device/stream without blocking.
+    io_event_kind_read = (1 << 0),
+
+    // It is possible to write data to a device/stream without blocking.
+    io_event_kind_write = (1 << 1),
+
+    // An error occured in the device/stream.
+    io_event_kind_error = (1 << 2),
+
+    // The device/stream closes or disconnected.
+    io_event_kind_hangup = (1 << 3),
+} EventIoFlag;
+
+// A function called by an I/O event. `userdata` is the value given to `event_queue_add_io_event`,
+// `fd` is the corresponding file descriptor, and `flag` is the kind of event which triggered this call.
+typedef void (*EventIoFunction)(int fd, EventIoFlag flag, void* userdata);
+
+// A function called by an internal event. `userdata` is provided when registering the event,
+// `eventdata` is passed when triggering the event.
 typedef void (*EventFunction)(void* userdata, void* eventdata);
 
+// The ID of a registered event. Used to remove and trigger events.
 typedef struct EventId {
     uint32_t id;
 } EventId;
 
-typedef struct Event {
+// The ID of a registered I/O event. Used to remove I/O events.
+typedef struct IoEventId {
     uint32_t id;
-    void* userdata;
-    EventFunction function;
-} Event;
+} IoEventId;
 
+// Internal event information
+typedef struct Event Event;
+
+// An event queue.
 typedef struct EventQueue {
     uint32_t next_timer_id;
     uint32_t next_event_id;
     TimerHeap timers;
-
     Event* events;
     size_t events_size;
     size_t events_capacity;
@@ -63,6 +87,19 @@ void event_queue_remove_event(EventQueue* queue, EventId id);
 // Trigger an event with the given `id`. Will result in a call of `function(userdata, eventdata)`
 // given the event's function and userdata. (See `event_queue_add_event`).
 void event_queue_trigger_event(EventQueue* queue, EventId id, void* eventdata);
+
+// Given a `mask` (one or more EventIoFlag values OR'd together) and a file descriptor (`fd`),
+// trigger a call to `function(fd, flag, userdata)` when a corresponding I/O event occurs.
+IoEventId event_queue_add_io_event(
+    EventQueue* queue,
+    int fd,
+    uint32_t mask,
+    EventIoFunction function,
+    void* userdata
+);
+
+// Remove an I/O event (identified by `id`) from the event queue. Associated functions
+void event_queue_remove_io_event(EventQueue* queue, IoEventId id);
 
 // If there are no events to wait for, return false immediately. Otherwise, wait until the next
 // event can be processed, process it, and return true.

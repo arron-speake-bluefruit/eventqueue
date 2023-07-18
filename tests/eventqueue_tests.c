@@ -1,6 +1,7 @@
 #include "eventqueue.h"
 #include "mock_time.h"
 #include <assert.h>
+#include <unistd.h>
 
 // --- Utility & mocks --- //
 
@@ -15,6 +16,12 @@ static size_t timer_b_callback_call_count;
 static void timer_b_callback(void* userdata) {
     (void)userdata;
     timer_b_callback_call_count += 1;
+}
+
+static void event_io_function(int fd, EventIoFlag flag, void* userdata) {
+    (void)fd;
+    (void)flag;
+    (void)userdata;
 }
 
 // --- Tests --- //
@@ -145,6 +152,27 @@ static void can_add_events(void) {
     event_queue_free(&queue);
 }
 
+static void can_add_io_read_event(void) {
+    // Set up pipes for testing instead of file descriptors of on-disk files.
+    int pipes[2];
+    assert(pipe(pipes) == 0);
+    int read_pipe = pipes[0];
+    int write_pipe = pipes[1];
+
+    EventQueue queue = event_queue_new();
+
+    IoEventId event = event_queue_add_io_event(
+        &queue, read_pipe, io_event_kind_read, event_io_function, NULL);
+
+    event_queue_remove_io_event(&queue, event);
+
+    event_queue_free(&queue);
+
+    // Close test pipes
+    close(write_pipe);
+    close(read_pipe);
+}
+
 // --- Test runner -- //
 
 static void setup(void) {
@@ -163,6 +191,7 @@ int main(void) {
         can_add_periodic_timers,
         can_remove_timers,
         can_add_events,
+        can_add_io_read_event,
     };
 
     size_t test_count = sizeof(tests) / sizeof(tests[0]);
