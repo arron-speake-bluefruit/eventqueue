@@ -27,6 +27,19 @@ static void reallocate_events_if_at_capacity(EventQueue* queue) {
     }
 }
 
+void reallocate_io_events_if_at_capacity(EventQueue* queue) {
+    if (queue->io_events_size == queue->io_events_capacity) {
+        queue->io_events_capacity *= 2;
+
+        queue->io_events = realloc(queue->io_events, sizeof(IoEvent) * queue->io_events_capacity);
+        if (queue->io_events == NULL) abort();
+
+        queue->io_pollfds = realloc(
+            queue->io_pollfds, sizeof(struct pollfd) * queue->io_events_capacity);
+        if (queue->io_pollfds == NULL) abort();
+    }
+}
+
 static void push_event(EventQueue* queue, Event event) {
     reallocate_events_if_at_capacity(queue);
     queue->events[queue->events_size] = event;
@@ -45,13 +58,36 @@ static bool get_event_by_id(const EventQueue* queue, EventId id, size_t* out) {
     return false;
 }
 
-static void remove_event_at_position(EventQueue* queue, size_t index) {
-    void* destination =  &queue->events[index];
-    const void* source = &queue->events[index + 1];
-    size_t size = sizeof(Event) * (queue->events_size - index - 1);
-    memmove(destination, source, size);
+static bool get_io_event_by_id(const EventQueue* queue, IoEventId id, size_t* out) {
+    // TODO: Replace with binary search
+    for (size_t i = 0; i < queue->io_events_size; i++) {
+        if (queue->io_events[i].id == id.id) {
+            *out = i;
+            return true;
+        }
+    }
 
+    return false;
+}
+
+// given `array`, containing `length` elements of size `size`, remove the `index`th element, and
+// shift subsequent element down by 1.
+static void remove_array_element(size_t size, size_t length, void* array, size_t index) {
+    void* destination =  (char*)array + (size * index);
+    const void* source = (char*)array + (size * (index + 1));
+    size_t amount = size * (length - index - 1);
+    memmove(destination, source, amount);
+}
+
+static void remove_event_at_position(EventQueue* queue, size_t index) {
+    remove_array_element(sizeof(Event), queue->events_size, queue->events, index);
     queue->events_size -= 1;
+}
+
+static void remove_io_event_at_position(EventQueue* queue, size_t index) {
+    remove_array_element(sizeof(IoEvent), queue->io_events_size, queue->io_events, index);
+    remove_array_element(sizeof(struct pollfd), queue->io_events_size, queue->io_pollfds, index);
+    queue->io_events_size -= 1;
 }
 
 static void push_event_to_timer_queue(EventQueue* queue, EventId id, void* eventdata) {
@@ -172,16 +208,7 @@ IoEventId event_queue_add_io_event(
     // TODO: Support non-read IO events.
     assert(mask == event_io_flag_read);
 
-    if (queue->io_events_size == queue->io_events_capacity) {
-        queue->io_events_capacity *= 2;
-
-        queue->io_events = realloc(queue->io_events, sizeof(IoEvent) * queue->io_events_capacity);
-        if (queue->io_events == NULL) abort();
-
-        queue->io_pollfds = realloc(
-            queue->io_pollfds, sizeof(struct pollfd) * queue->io_events_capacity);
-        if (queue->io_pollfds == NULL) abort();
-    }
+    reallocate_io_events_if_at_capacity(queue);
 
     struct pollfd pollfd = {
         .fd = fd,
@@ -206,34 +233,15 @@ IoEventId event_queue_add_io_event(
 }
 
 void event_queue_remove_io_event(EventQueue* queue, IoEventId id) {
-    size_t index = SIZE_MAX;
-
-    for (size_t i = 0; i < queue->io_events_size; i++) {
-        if (queue->io_events[i].id == id.id) {
-            index = i;
-            break;
-        }
+    size_t index;
+    if (get_io_event_by_id(queue, id, &index)) {
+        remove_io_event_at_position(queue, index);
     }
-
-    if (index == SIZE_MAX) {
-        return;
-        // TODO: Handle invalid ID?
-    }
-
-    void* destination =  &queue->io_pollfds[index];
-    const void* source = &queue->io_pollfds[index + 1];
-    size_t size = sizeof(struct pollfd) * (queue->io_events_size - index - 1);
-    memmove(destination, source, size);
-
-    destination =  &queue->io_events[index];
-    source = &queue->io_events[index + 1];
-    size = sizeof(IoEvent) * (queue->io_events_size - index - 1);
-    memmove(destination, source, size);
-
-    queue->io_events_size -= 1;
 }
 
 bool event_queue_wait(EventQueue* queue) {
+    // TODO: Integrate I/O events and timers.
+
     if (queue->io_events_size > 0) {
         int timeout_ms = -1; // TODO: Get timeout from timer queue.
 
