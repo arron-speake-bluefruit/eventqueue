@@ -170,8 +170,8 @@ void event_queue_remove_io_event(EventQueue* queue, IoEventId id) {
 
 bool event_queue_wait(EventQueue* queue) {
     if (queue->has_io_event) {
-        // TODO: Handle IO events with mixed events & timers
-        assert(queue->io_mask == io_event_kind_read); // TODO: Handle non-read IO events.
+        // TODO: When non-read events are supported, hanle them:
+        assert(queue->io_mask == event_io_flag_read);
 
         struct pollfd pollfd = {
             .events = POLLIN,
@@ -182,7 +182,7 @@ bool event_queue_wait(EventQueue* queue) {
         int timeout_ms = -1; // TODO: Get timeout from timer queue.
 
         if (poll(&pollfd, 1, timeout_ms) > 0) {
-            queue->io_function(queue->io_fd, io_event_kind_read, queue->io_userdata);
+            queue->io_function(queue->io_fd, event_io_flag_read, queue->io_userdata);
         } else {
             // TODO: Handle poll error and timeout.
         }

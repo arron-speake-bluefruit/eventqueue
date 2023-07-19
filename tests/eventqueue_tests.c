@@ -174,13 +174,13 @@ static void can_add_io_read_event(void) {
     int userdata = 0;
     EventQueue queue = event_queue_new();
     IoEventId event = event_queue_add_io_event(
-        &queue, read_pipe, io_event_kind_read, event_io_function, &userdata);
+        &queue, read_pipe, event_io_flag_read, event_io_function, &userdata);
 
     assert(write(write_pipe, "Hello!\n", 7) == 7);
 
     assert(event_queue_wait(&queue));
     assert(event_io_function_fd == read_pipe);
-    assert(event_io_function_flag == io_event_kind_read);
+    assert(event_io_function_flag == event_io_flag_read);
     assert(event_io_function_userdata == &userdata);
     assert(event_io_function_call_count == 1);
 

@@ -8,16 +8,16 @@
 // A kind of I/O event to watch for.
 typedef enum EventIoFlag {
     // Data is available to read on a device/stream without blocking.
-    io_event_kind_read = (1 << 0),
+    event_io_flag_read = (1 << 0),
 
-    // It is possible to write data to a device/stream without blocking.
-    io_event_kind_write = (1 << 1),
+    // It is possible to write data to a device/stream without blocking. Unimplemented.
+    // event_io_flag_write = (1 << 1),
 
-    // An error occured in the device/stream.
-    io_event_kind_error = (1 << 2),
+    // An error occured in the device/stream. Unimplemented.
+    // event_io_flag_error = (1 << 2),
 
-    // The device/stream closes or disconnected.
-    io_event_kind_hangup = (1 << 3),
+    // The device/stream closes or disconnected. Unimplemented.
+    // event_io_flag_hangup = (1 << 3),
 } EventIoFlag;
 
 // A function called by an I/O event. `userdata` is the value given to `event_queue_add_io_event`,
