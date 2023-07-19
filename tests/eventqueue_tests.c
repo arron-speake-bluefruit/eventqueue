@@ -233,6 +233,38 @@ static void can_add_io_read_event(void) {
     close(read_pipe_b);
 }
 
+static void can_combine_timers_and_io_events(void) {
+    int pipes[2];
+    assert(pipe(pipes) == 0);
+    int read_pipe = pipes[0];
+    int write_pipe = pipes[1];
+    assert(fcntl(read_pipe, F_SETFL, O_NONBLOCK) == 0);
+
+    EventQueue queue = event_queue_new();
+    event_queue_add_io_event(&queue, read_pipe, event_io_flag_read, event_io_function_a, NULL);
+    event_queue_add_periodic_timer(&queue, 100, 100, timer_a_callback, NULL);
+
+    assert(event_queue_wait(&queue));
+    assert(event_io_function_a_call_count == 0);
+    assert(timer_a_callback_call_count == 1);
+    assert(mock_time_get() == 100); // waited for timer
+
+    assert(write(write_pipe, "what is up this is a message", 28) == 28);
+
+    assert(event_queue_wait(&queue));
+    assert(mock_time_get() == 200);
+    assert(event_io_function_a_fd == read_pipe);
+    assert(event_io_function_a_flag == event_io_flag_read);
+    assert(event_io_function_a_userdata == NULL);
+    assert(event_io_function_a_call_count == 1);
+    assert(timer_a_callback_call_count == 2);
+
+    event_queue_free(&queue);
+
+    close(write_pipe);
+    close(read_pipe);
+}
+
 // --- Test runner -- //
 
 static void setup(void) {
@@ -260,6 +292,7 @@ int main(void) {
         can_remove_timers,
         can_add_events,
         can_add_io_read_event,
+        can_combine_timers_and_io_events,
     };
 
     size_t test_count = sizeof(tests) / sizeof(tests[0]);

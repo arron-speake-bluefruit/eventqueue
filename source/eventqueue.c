@@ -239,36 +239,43 @@ void event_queue_remove_io_event(EventQueue* queue, IoEventId id) {
     }
 }
 
-bool event_queue_wait(EventQueue* queue) {
-    // TODO: Integrate I/O events and timers.
+static bool handle_io_events(EventQueue* queue, int timeout_ms) {
+    if (queue->io_events_size == 0) {
+        return false; // Handled no events, report false.
+    }
 
-    if (queue->io_events_size > 0) {
-        int timeout_ms = -1; // TODO: Get timeout from timer queue.
+    int poll_status = poll(queue->io_pollfds, queue->io_events_size, timeout_ms);
 
-        int poll_status = poll(queue->io_pollfds, queue->io_events_size, timeout_ms);
+    if (poll_status > 0) {
+        for (size_t i = 0; i < queue->io_events_size; i++) {
+            struct pollfd* polllfd = &queue->io_pollfds[i];
 
-        if (poll_status > 0) {
-            for (size_t i = 0; i < queue->io_events_size; i++) {
-                struct pollfd* polllfd = &queue->io_pollfds[i];
-
-                if ((polllfd->revents & POLLIN) != 0) {
-                    IoEvent event = queue->io_events[i];
-                    event.function(polllfd->fd, event_io_flag_read, event.userdata);
-                }
-
-                polllfd->revents = 0;
+            if ((polllfd->revents & POLLIN) != 0) {
+                IoEvent event = queue->io_events[i];
+                event.function(polllfd->fd, event_io_flag_read, event.userdata);
             }
-        } else {
-            // TODO: Handle poll error and timeout.
+
+            polllfd->revents = 0;
         }
 
         return true;
+    } else {
+        // TODO: Handle poll error and timeout.
+        return false;
     }
+}
+
+bool event_queue_wait(EventQueue* queue) {
+    // TODO: Rewrite wait logic. It's a bit of a mess.
 
     Timer timer;
     if (!timer_heap_take(&queue->timers, &timer)) {
-        return false;
+        int no_timeout = -1;
+        return handle_io_events(queue, no_timeout);
     } else if (timer.is_event) {
+        // NOTE: Currently, there's no deadline check/wait for events. Since they're 'immediate,'
+        // they should always be executed without delay.
+
         EventId id = (EventId){timer.id};
 
         size_t index;
@@ -279,7 +286,17 @@ bool event_queue_wait(EventQueue* queue) {
 
         return true;
     } else {
+        uint64_t now_us = time_now_us();
+
+        if (timer.deadline > now_us) {
+            int timeout_ms = (timer.deadline - now_us) / 1000000;
+            handle_io_events(queue, timeout_ms);
+        }
+
+        // millisecond granularity of `poll` might not take us up to actual deadline, so sleep
+        // again using microsecond deadline:
         time_sleep_until(timer.deadline);
+
         timer.function(timer.userdata);
 
         bool is_periodic = timer.period != UINT64_MAX;
