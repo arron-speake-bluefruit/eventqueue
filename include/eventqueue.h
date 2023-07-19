@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct pollfd;
+
 // A kind of I/O event to watch for.
 typedef enum EventIoFlag {
     // Data is available to read on a device/stream without blocking.
@@ -16,7 +18,7 @@ typedef enum EventIoFlag {
     // An error occured in the device/stream. Unimplemented.
     // event_io_flag_error = (1 << 2),
 
-    // The device/stream closes or disconnected. Unimplemented.
+    // The device/stream closed or disconnected. Unimplemented.
     // event_io_flag_hangup = (1 << 3),
 } EventIoFlag;
 
@@ -41,20 +43,22 @@ typedef struct IoEventId {
 // Internal event information
 typedef struct Event Event;
 
+// Internal I/O event information
+typedef struct IoEvent IoEvent;
+
 // An event queue.
 typedef struct EventQueue {
     uint32_t next_timer_id;
     uint32_t next_event_id;
+    uint32_t next_io_event_id;
     TimerHeap timers;
     Event* events;
     size_t events_size;
     size_t events_capacity;
-
-    bool has_io_event;
-    int io_fd;
-    uint32_t io_mask;
-    EventIoFunction io_function;
-    void* io_userdata;
+    struct pollfd* io_pollfds;
+    IoEvent* io_events;
+    size_t io_events_size;
+    size_t io_events_capacity;
 } EventQueue;
 
 // Create a new event queue with no registered timers or events.

@@ -19,15 +19,30 @@ static void timer_b_callback(void* userdata) {
     timer_b_callback_call_count += 1;
 }
 
-static size_t event_io_function_call_count;
-static int event_io_function_fd;
-static EventIoFlag event_io_function_flag;
-static void* event_io_function_userdata;
-static void event_io_function(int fd, EventIoFlag flag, void* userdata) {
-    event_io_function_fd = fd;
-    event_io_function_flag = flag;
-    event_io_function_userdata = userdata;
-    event_io_function_call_count += 1;
+static size_t event_io_function_a_call_count;
+static int event_io_function_a_fd;
+static EventIoFlag event_io_function_a_flag;
+static void* event_io_function_a_userdata;
+static void event_io_function_a(int fd, EventIoFlag flag, void* userdata) {
+    event_io_function_a_fd = fd;
+    event_io_function_a_flag = flag;
+    event_io_function_a_userdata = userdata;
+    event_io_function_a_call_count += 1;
+
+    // empty out the available data
+    char data;
+    while (read(fd, &data, 1) == 1) {}
+}
+
+static size_t event_io_function_b_call_count;
+static int event_io_function_b_fd;
+static EventIoFlag event_io_function_b_flag;
+static void* event_io_function_b_userdata;
+static void event_io_function_b(int fd, EventIoFlag flag, void* userdata) {
+    event_io_function_b_fd = fd;
+    event_io_function_b_flag = flag;
+    event_io_function_b_userdata = userdata;
+    event_io_function_b_call_count += 1;
 
     // empty out the available data
     char data;
@@ -165,33 +180,57 @@ static void can_add_events(void) {
 static void can_add_io_read_event(void) {
     // Set up pipes for testing instead of file descriptors of on-disk files.
     // The pipes are made non-blocking.
-    int pipes[2];
-    assert(pipe(pipes) == 0);
-    int read_pipe = pipes[0];
-    int write_pipe = pipes[1];
-    assert(fcntl(read_pipe, F_SETFL, O_NONBLOCK) == 0);
+    int pipes[4];
+    assert(pipe(&pipes[0]) == 0);
+    assert(pipe(&pipes[2]) == 0);
+    int read_pipe_a = pipes[0];
+    int write_pipe_a = pipes[1];
+    int read_pipe_b = pipes[2];
+    int write_pipe_b = pipes[3];
+    assert(fcntl(read_pipe_a, F_SETFL, O_NONBLOCK) == 0);
+    assert(fcntl(read_pipe_b, F_SETFL, O_NONBLOCK) == 0);
 
     int userdata = 0;
     EventQueue queue = event_queue_new();
-    IoEventId event = event_queue_add_io_event(
-        &queue, read_pipe, event_io_flag_read, event_io_function, &userdata);
+    IoEventId event_a = event_queue_add_io_event(
+        &queue, read_pipe_a, event_io_flag_read, event_io_function_a, &userdata);
+    IoEventId event_b = event_queue_add_io_event(
+        &queue, read_pipe_b, event_io_flag_read, event_io_function_b, &userdata);
 
-    assert(write(write_pipe, "Hello!\n", 7) == 7);
+    assert(write(write_pipe_a, "Hello!\n", 7) == 7);
+    assert(write(write_pipe_b, "Goodbye!\n", 9) == 9);
 
     assert(event_queue_wait(&queue));
-    assert(event_io_function_fd == read_pipe);
-    assert(event_io_function_flag == event_io_flag_read);
-    assert(event_io_function_userdata == &userdata);
-    assert(event_io_function_call_count == 1);
+    assert(event_io_function_a_fd == read_pipe_a);
+    assert(event_io_function_a_flag == event_io_flag_read);
+    assert(event_io_function_a_userdata == &userdata);
+    assert(event_io_function_a_call_count == 1);
+    assert(event_io_function_b_fd == read_pipe_b);
+    assert(event_io_function_b_flag == event_io_flag_read);
+    assert(event_io_function_b_userdata == &userdata);
+    assert(event_io_function_b_call_count == 1);
 
-    event_queue_remove_io_event(&queue, event);
+    assert(write(write_pipe_b, "{'a':'b'}", 9) == 9);
+
+    assert(event_queue_wait(&queue));
+    assert(event_io_function_b_fd == read_pipe_b);
+    assert(event_io_function_b_flag == event_io_flag_read);
+    assert(event_io_function_b_userdata == &userdata);
+    assert(event_io_function_b_call_count == 2);
+    assert(event_io_function_a_call_count == 1);
+
+    event_queue_remove_io_event(&queue, event_a);
+    event_queue_remove_io_event(&queue, event_b);
 
     assert(!event_queue_wait(&queue));
-    assert(event_io_function_call_count == 1);
+    assert(event_io_function_a_call_count == 1);
+    assert(event_io_function_b_call_count == 2);
 
     event_queue_free(&queue);
-    close(write_pipe);
-    close(read_pipe);
+    close(write_pipe_a);
+    close(read_pipe_a);
+    close(write_pipe_b);
+    close(read_pipe_b);
 }
 
 // --- Test runner -- //
@@ -203,10 +242,14 @@ static void setup(void) {
     event_callback_call_count = 0;
     event_callback_userdata = NULL;
     event_callback_eventdata = NULL;
-    event_io_function_fd = 0;
-    event_io_function_flag = 0;
-    event_io_function_userdata = NULL;
-    event_io_function_call_count = 0;
+    event_io_function_a_fd = 0;
+    event_io_function_a_flag = 0;
+    event_io_function_a_userdata = NULL;
+    event_io_function_a_call_count = 0;
+    event_io_function_b_fd = 0;
+    event_io_function_b_flag = 0;
+    event_io_function_b_userdata = NULL;
+    event_io_function_b_call_count = 0;
     mock_time_reset();
 }
 
