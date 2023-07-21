@@ -9,13 +9,13 @@
 struct Event {
     uint32_t id;
     void* userdata;
-    EventFunction function;
+    EventFunction callback;
 };
 
 // Definition of typedef struct IoEvent IoEvent (in header):
 struct IoEvent {
     uint32_t id;
-    EventIoFunction function;
+    EventIoFunction callback;
     void* userdata;
 };
 
@@ -95,7 +95,7 @@ static void push_event_to_timer_queue(EventQueue* queue, EventId id, void* event
         .is_event = true,
         .deadline = time_now_us(),
         .period = 0, // Unused
-        .function = NULL, // Unused
+        .callback = NULL, // Unused
         .userdata = eventdata,
         .id = id.id,
     };
@@ -131,17 +131,17 @@ EventQueue event_queue_new(void) {
 TimerId event_queue_add_timer(
     EventQueue* queue,
     uint64_t delay_us,
-    TimerFunction function,
+    TimerFunction callback,
     void* userdata
 ) {
-    return event_queue_add_periodic_timer(queue, delay_us, UINT64_MAX, function, userdata);
+    return event_queue_add_periodic_timer(queue, delay_us, UINT64_MAX, callback, userdata);
 }
 
 TimerId event_queue_add_periodic_timer(
     EventQueue* queue,
     uint64_t delay_us,
     uint64_t period_us,
-    TimerFunction function,
+    TimerFunction callback,
     void* userdata
 ) {
     uint32_t id = queue->next_timer_id;
@@ -154,7 +154,7 @@ TimerId event_queue_add_periodic_timer(
         .id = id,
         .deadline = now + delay_us,
         .period = period_us,
-        .function = function,
+        .callback = callback,
         .userdata = userdata,
     };
 
@@ -167,13 +167,13 @@ void event_queue_remove_timer(EventQueue* queue, TimerId id) {
     timer_heap_remove_id(&queue->timers, id);
 }
 
-EventId event_queue_add_event(EventQueue* queue, EventFunction function, void* userdata) {
+EventId event_queue_add_event(EventQueue* queue, EventFunction callback, void* userdata) {
     uint32_t id = queue->next_event_id;
     queue->next_event_id += 1;
 
     Event event = {
         .id = id,
-        .function = function,
+        .callback = callback,
         .userdata = userdata,
     };
 
@@ -202,7 +202,7 @@ IoEventId event_queue_add_io_event(
     EventQueue* queue,
     int fd,
     uint32_t mask,
-    EventIoFunction function,
+    EventIoFunction callback,
     void* userdata
 ) {
     // TODO: Support non-read IO events.
@@ -221,7 +221,7 @@ IoEventId event_queue_add_io_event(
 
     IoEvent event = {
         .id = id,
-        .function = function,
+        .callback = callback,
         .userdata = userdata,
     };
 
@@ -252,7 +252,7 @@ static bool handle_io_events(EventQueue* queue, int timeout_ms) {
 
             if ((polllfd->revents & POLLIN) != 0) {
                 IoEvent event = queue->io_events[i];
-                event.function(polllfd->fd, event_io_flag_read, event.userdata);
+                (*event.callback)(polllfd->fd, event_io_flag_read, event.userdata);
             }
 
             polllfd->revents = 0;
@@ -281,7 +281,7 @@ bool event_queue_wait(EventQueue* queue) {
         size_t index;
         if (get_event_by_id(queue, id, &index)) {
             Event event = queue->events[index];
-            event.function(event.userdata, timer.userdata);
+            (*event.callback)(event.userdata, timer.userdata);
         }
 
         return true;
@@ -297,7 +297,8 @@ bool event_queue_wait(EventQueue* queue) {
         // again using microsecond deadline:
         time_sleep_until(timer.deadline);
 
-        timer.function(timer.userdata);
+        // Trigger the timer's callback function.
+        (*timer.callback)(timer.userdata);
 
         bool is_periodic = timer.period != UINT64_MAX;
         if (is_periodic) {

@@ -25,7 +25,7 @@ typedef struct Timer {
     uint64_t period;
 
     // The function to call when the timer fires. Ignored for events.
-    TimerFunction function;
+    TimerFunction callback;
 
     // Data to pass to the associated timer/event function when called.
     void* userdata;
