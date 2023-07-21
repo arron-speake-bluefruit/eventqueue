@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// If the period of a timer is `UINT64_MAX` (approx. 500,000 years), it is considered aperiodic.
+#define TIMER_APERIODIC UINT64_MAX
+
 struct pollfd;
 
 // A kind of I/O event to watch for.

@@ -134,7 +134,7 @@ TimerId event_queue_add_timer(
     TimerFunction callback,
     void* userdata
 ) {
-    return event_queue_add_periodic_timer(queue, delay_us, UINT64_MAX, callback, userdata);
+    return event_queue_add_periodic_timer(queue, delay_us, TIMER_APERIODIC, callback, userdata);
 }
 
 TimerId event_queue_add_periodic_timer(
@@ -300,7 +300,7 @@ bool event_queue_wait(EventQueue* queue) {
         // Trigger the timer's callback function.
         (*timer.callback)(timer.userdata);
 
-        bool is_periodic = timer.period != UINT64_MAX;
+        bool is_periodic = timer.period != TIMER_APERIODIC;
         if (is_periodic) {
             // TODO: This can be optimized by checking if the timer is reinserted before the binary
             // tree sift-down in timer_heap_take.
