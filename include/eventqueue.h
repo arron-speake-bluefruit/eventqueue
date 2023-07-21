@@ -55,7 +55,7 @@ typedef struct EventQueue {
     Event* events;
     size_t events_size;
     size_t events_capacity;
-    struct pollfd* io_pollfds;
+    struct pollfd* io_poll_descriptors;
     IoEvent* io_events;
     size_t io_events_size;
     size_t io_events_capacity;

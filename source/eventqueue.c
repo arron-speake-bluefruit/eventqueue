@@ -34,9 +34,9 @@ void reallocate_io_events_if_at_capacity(EventQueue* queue) {
         queue->io_events = realloc(queue->io_events, sizeof(IoEvent) * queue->io_events_capacity);
         if (queue->io_events == NULL) abort();
 
-        queue->io_pollfds = realloc(
-            queue->io_pollfds, sizeof(struct pollfd) * queue->io_events_capacity);
-        if (queue->io_pollfds == NULL) abort();
+        queue->io_poll_descriptors = realloc(
+            queue->io_poll_descriptors, sizeof(struct pollfd) * queue->io_events_capacity);
+        if (queue->io_poll_descriptors == NULL) abort();
     }
 }
 
@@ -86,7 +86,7 @@ static void remove_event_at_position(EventQueue* queue, size_t index) {
 
 static void remove_io_event_at_position(EventQueue* queue, size_t index) {
     remove_array_element(sizeof(IoEvent), queue->io_events_size, queue->io_events, index);
-    remove_array_element(sizeof(struct pollfd), queue->io_events_size, queue->io_pollfds, index);
+    remove_array_element(sizeof(struct pollfd), queue->io_events_size, queue->io_poll_descriptors, index);
     queue->io_events_size -= 1;
 }
 
@@ -108,8 +108,8 @@ EventQueue event_queue_new(void) {
     Event* events = malloc(sizeof(Event));
     if (events == NULL) abort();
 
-    struct pollfd* io_pollfds = malloc(sizeof(struct pollfd));
-    if (io_pollfds == NULL) abort();
+    struct pollfd* io_poll_descriptors = malloc(sizeof(struct pollfd));
+    if (io_poll_descriptors == NULL) abort();
 
     IoEvent* io_events = malloc(sizeof(IoEvent));
     if (io_events == NULL) abort();
@@ -121,7 +121,7 @@ EventQueue event_queue_new(void) {
         .events = events,
         .events_size = 0,
         .events_capacity = 1,
-        .io_pollfds = io_pollfds,
+        .io_poll_descriptors = io_poll_descriptors,
         .io_events = io_events,
         .io_events_size = 0,
         .io_events_capacity = 1,
@@ -225,7 +225,7 @@ IoEventId event_queue_add_io_event(
         .userdata = userdata,
     };
 
-    queue->io_pollfds[queue->io_events_size] = pollfd;
+    queue->io_poll_descriptors[queue->io_events_size] = pollfd;
     queue->io_events[queue->io_events_size] = event;
     queue->io_events_size += 1;
 
@@ -244,11 +244,11 @@ static bool handle_io_events(EventQueue* queue, int timeout_ms) {
         return false; // Handled no events, report false.
     }
 
-    int poll_status = poll(queue->io_pollfds, queue->io_events_size, timeout_ms);
+    int poll_status = poll(queue->io_poll_descriptors, queue->io_events_size, timeout_ms);
 
     if (poll_status > 0) {
         for (size_t i = 0; i < queue->io_events_size; i++) {
-            struct pollfd* polllfd = &queue->io_pollfds[i];
+            struct pollfd* polllfd = &queue->io_poll_descriptors[i];
 
             if ((polllfd->revents & POLLIN) != 0) {
                 IoEvent event = queue->io_events[i];
@@ -314,6 +314,6 @@ bool event_queue_wait(EventQueue* queue) {
 void event_queue_free(EventQueue* queue) {
     timer_heap_free(&queue->timers);
     free(queue->events);
-    free(queue->io_pollfds);
+    free(queue->io_poll_descriptors);
     free(queue->io_events);
 }
