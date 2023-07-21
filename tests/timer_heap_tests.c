@@ -29,7 +29,7 @@ static void new_timer_heap_is_empty(void) {
     timer_heap_free(&heap);
 }
 
-static void can_insert_and_remove_element(void) {
+static void can_remove_timer_after_inserting_it(void) {
     TimerHeap heap = timer_heap_new();
 
     Timer timer = {0};
@@ -50,7 +50,7 @@ static void can_insert_and_remove_element(void) {
     timer_heap_free(&heap);
 }
 
-static void can_insert_multiple_elements(void) {
+static void insertion_of_multiple_timers_maintains_ordering(void) {
     TimerHeap heap = timer_heap_new();
 
     timer_heap_insert(&heap, (Timer){ .deadline = 2, .id = 0 });
@@ -84,10 +84,12 @@ static void can_insert_multiple_elements(void) {
     timer_heap_free(&heap);
 }
 
-static void can_insert_very_large_number_of_elements(void) {
+static void large_number_of_timers_are_well_ordered_in_heap(void) {
     TimerHeap heap = timer_heap_new();
 
-    for (size_t i = 0; i < 10000; i++) {
+    const size_t element_count = 100000;
+
+    for (size_t i = 0; i < element_count; i++) {
         // Hash the index for the deadline. This gives you a consistent pseudorandom sequence of
         // deadlines. (No stdlib rand in tests!!)
         uint64_t deadline = hash64(i + 1);
@@ -107,7 +109,7 @@ static void can_insert_very_large_number_of_elements(void) {
     timer_heap_free(&heap);
 }
 
-static void can_remove_timers(void) {
+static void removing_a_timer_id_removes_timer_from_heap(void) {
     TimerHeap heap = timer_heap_new();
 
     timer_heap_insert(&heap, (Timer){ .deadline = 100, .id = 1 });
@@ -133,10 +135,10 @@ static void can_remove_timers(void) {
 int main(void) {
     void (*tests[])(void) = {
         new_timer_heap_is_empty,
-        can_insert_and_remove_element,
-        can_insert_multiple_elements,
-        can_insert_very_large_number_of_elements,
-        can_remove_timers,
+        can_remove_timer_after_inserting_it,
+        insertion_of_multiple_timers_maintains_ordering,
+        large_number_of_timers_are_well_ordered_in_heap,
+        removing_a_timer_id_removes_timer_from_heap,
     };
 
     size_t test_count = sizeof(tests) / sizeof(tests[0]);

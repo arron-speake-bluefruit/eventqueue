@@ -51,7 +51,7 @@ static void event_io_function_b(int fd, EventIoFlag flag, void* userdata) {
 
 // --- Tests --- //
 
-static void can_add_timers(void) {
+static void added_timers_cause_delay_when_waiting(void) {
     EventQueue queue = event_queue_new();
 
     int example_value = 0;
@@ -79,7 +79,7 @@ static void can_add_timers(void) {
     event_queue_free(&queue);
 }
 
-static void can_add_periodic_timers(void) {
+static void periodic_timers_trigger_callbacks_repeatedly_at_given_intervals(void) {
     EventQueue queue = event_queue_new();
 
     TimerId id_a = event_queue_add_periodic_timer(&queue, 2000, 2000, timer_a_callback, NULL);
@@ -119,7 +119,7 @@ static void can_add_periodic_timers(void) {
     event_queue_free(&queue);
 }
 
-static void can_remove_timers(void) {
+static void removed_timers_do_not_trigger_callbacks(void) {
     EventQueue queue = event_queue_new();
 
     TimerId timer = event_queue_add_periodic_timer(&queue, 2000, 2000, timer_a_callback, NULL);
@@ -140,7 +140,7 @@ void event_callback(void* userdata, void* eventdata) {
     event_callback_eventdata = eventdata;
 }
 
-static void can_add_events(void) {
+static void waiting_after_event_trigger_calls_related_callback(void) {
     EventQueue queue = event_queue_new();
 
     int a_data = 0;
@@ -177,7 +177,7 @@ static void can_add_events(void) {
     event_queue_free(&queue);
 }
 
-static void can_add_io_read_event(void) {
+static void io_events_trigger_callback_on_pipe_events(void) {
     // Set up pipes for testing instead of file descriptors of on-disk files.
     // The pipes are made non-blocking.
     int pipes[4];
@@ -287,11 +287,11 @@ static void setup(void) {
 
 int main(void) {
     void (*tests[])(void) = {
-        can_add_timers,
-        can_add_periodic_timers,
-        can_remove_timers,
-        can_add_events,
-        can_add_io_read_event,
+        added_timers_cause_delay_when_waiting,
+        periodic_timers_trigger_callbacks_repeatedly_at_given_intervals,
+        removed_timers_do_not_trigger_callbacks,
+        waiting_after_event_trigger_calls_related_callback,
+        io_events_trigger_callback_on_pipe_events,
         can_combine_timers_and_io_events,
     };
 
