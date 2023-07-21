@@ -289,7 +289,7 @@ bool event_queue_wait(EventQueue* queue) {
         uint64_t now_us = time_now_us();
 
         if (timer.deadline > now_us) {
-            int timeout_ms = (timer.deadline - now_us) / 1000000;
+            int timeout_ms = (timer.deadline - now_us) / 1000;
             handle_io_events(queue, timeout_ms);
         }
 
