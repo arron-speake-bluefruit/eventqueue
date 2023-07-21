@@ -265,50 +265,56 @@ static bool handle_io_events(EventQueue* queue, int timeout_ms) {
     }
 }
 
-bool event_queue_wait(EventQueue* queue) {
-    // TODO: Rewrite wait logic. It's a bit of a mess.
+static bool handle_event_timer(EventQueue* queue, Timer timer) {
+    // NOTE: Currently, there's no deadline check/wait for events. Since they're 'immediate,'
+    // they should always be executed without delay.
 
-    Timer timer;
-    if (!timer_heap_take(&queue->timers, &timer)) {
-        int no_timeout = -1;
-        return handle_io_events(queue, no_timeout);
-    } else if (timer.is_event) {
-        // NOTE: Currently, there's no deadline check/wait for events. Since they're 'immediate,'
-        // they should always be executed without delay.
+    EventId id = (EventId){timer.id};
 
-        EventId id = (EventId){timer.id};
+    size_t index;
+    if (get_event_by_id(queue, id, &index)) {
+        Event event = queue->events[index];
+        (*event.callback)(event.userdata, timer.userdata);
+    }
 
-        size_t index;
-        if (get_event_by_id(queue, id, &index)) {
-            Event event = queue->events[index];
-            (*event.callback)(event.userdata, timer.userdata);
-        }
+    return true;
+}
 
-        return true;
-    } else {
-        uint64_t now_us = time_now_us();
+static bool handle_ordinary_timer(EventQueue* queue, Timer timer) {
+    uint64_t now_us = time_now_us();
 
-        if (timer.deadline > now_us) {
-            int timeout_ms = (timer.deadline - now_us) / 1000;
-            handle_io_events(queue, timeout_ms);
-        }
+    if (timer.deadline > now_us) {
+        int timeout_ms = (timer.deadline - now_us) / 1000;
+        handle_io_events(queue, timeout_ms);
 
         // millisecond granularity of `poll` might not take us up to actual deadline, so sleep
         // again using microsecond deadline:
         time_sleep_until(timer.deadline);
+    }
 
-        // Trigger the timer's callback function.
-        (*timer.callback)(timer.userdata);
+    // Trigger the timer's callback function.
+    (*timer.callback)(timer.userdata);
 
-        bool is_periodic = timer.period != TIMER_APERIODIC;
-        if (is_periodic) {
-            // TODO: This can be optimized by checking if the timer is reinserted before the binary
-            // tree sift-down in timer_heap_take.
-            timer.deadline += timer.period;
-            timer_heap_insert(&queue->timers, timer);
-        }
+    bool is_periodic = timer.period != TIMER_APERIODIC;
+    if (is_periodic) {
+        // TODO: This can be optimized by checking if the timer is reinserted before the binary
+        // tree sift-down in timer_heap_take.
+        timer.deadline += timer.period;
+        timer_heap_insert(&queue->timers, timer);
+    }
 
-        return true;
+    return true;
+}
+
+bool event_queue_wait(EventQueue* queue) {
+    Timer timer;
+    if (!timer_heap_take(&queue->timers, &timer)) {
+        const int infinite_timeout = -1;
+        return handle_io_events(queue, infinite_timeout);
+    } else if (timer.is_event) {
+        return handle_event_timer(queue, timer);
+    } else /* ordinary non-event timer */ {
+        return handle_ordinary_timer(queue, timer);
     }
 }
 
